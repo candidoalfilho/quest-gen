@@ -152,7 +152,7 @@ def generate_template(
     """
 
     try:
-        question = fetch_single_math_question(year, index, limit)
+        question = fetch_single_math_question(year, index, language="ingles")
     except (error.URLError, json.JSONDecodeError, RuntimeError, ValueError) as exc:
         raise RuntimeError(f"Failed to fetch question {index} ({year}): {exc}") from exc
 
@@ -172,3 +172,6 @@ def generate_template(
 
     print(json.dumps(payload, ensure_ascii=False, indent=2))
     return payload
+
+# if __name__ == "__main__":
+#     generate_template(year=2023, index=136, include_original=False)
