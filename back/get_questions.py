@@ -54,15 +54,41 @@ def fetch_single_math_question(year: int, index: int, language: Optional[str]) -
         correct_alternative=question.get("correctAlternative", ""),
     )
 
+APPROX_PATTERNS = (
+    re.compile(
+        r"(\d[\d.,]*)\s+(?:(?:como|uma|um|a|o|por|para|e|é|eh)\s+){0,2}aprox(?:ima[çc][aã]o)?\b",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"aprox(?:ima[çc][aã]o)?\b(?:\s+(?:para|de|do|da|ao|a))?\s+(\d[\d.,]*)",
+        re.IGNORECASE,
+    ),
+    re.compile(r"(?:≈|∼|~)\s*(\d[\d.,]*)"),
+    re.compile(r"(\d[\d.,]*)\s*(?:≈|∼|~)"),
+)
+
+
+def _collect_spans(patterns: tuple[re.Pattern, ...], text: str) -> set[tuple[int, int]]:
+    spans: set[tuple[int, int]] = set()
+    for pattern in patterns:
+        for match in pattern.finditer(text):
+            for index, group in enumerate(match.groups(), start=1):
+                if group:
+                    spans.add((match.start(index), match.end(index)))
+    return spans
+
+
+def _position_in_spans(position: int, spans: set[tuple[int, int]]) -> bool:
+    return any(start <= position < end for start, end in spans)
+
+
 def parameterize_numbers(text: str) -> Tuple[str, Dict[str, str]]:
-    """Substitui números por placeholders, ignorando o que está em URLs."""
+    """Substitui números por placeholders, ignorando URLs e aproximações fixas."""
 
     number_pattern = re.compile(r"(\d+[\d.,]*)")
     url_pattern = re.compile(r"https?://\S+")
-    protected_spans = [(m.start(), m.end()) for m in url_pattern.finditer(text)]
-
-    def is_protected(position: int) -> bool:
-        return any(start <= position < end for start, end in protected_spans)
+    url_spans = [(m.start(), m.end()) for m in url_pattern.finditer(text)]
+    approx_spans = _collect_spans(APPROX_PATTERNS, text)
 
     placeholder_map: Dict[str, str] = {}
     placeholder_index = 1
@@ -75,7 +101,7 @@ def parameterize_numbers(text: str) -> Tuple[str, Dict[str, str]]:
 
         chunks.append(text[cursor:start])
 
-        if is_protected(start):
+        if _position_in_spans(start, url_spans) or _position_in_spans(start, approx_spans):
             chunks.append(literal)
         else:
             placeholder = f"{{{{n{placeholder_index}}}}}"
@@ -133,7 +159,6 @@ def build_template_payload(
 def generate_template(
     year: int,
     index: int,
-    limit: Optional[int] = None,
     include_original: bool = False,
 ) -> dict:
     """Return the template payload for a single ENEM math question.
@@ -170,7 +195,7 @@ def generate_template(
         include_original=include_original,
     )
 
-    print(json.dumps(payload, ensure_ascii=False, indent=2))
+    # print(json.dumps(payload, ensure_ascii=False, indent=2))
     return payload
 
 # if __name__ == "__main__":
