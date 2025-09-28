@@ -4,10 +4,14 @@ Endpoints para geração de questões
 """
 
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
-from typing import List, Optional
 from generator import QuestGenerator
-from schemas import QuestRequest, QuestResponse, QuestItem
+from modify import generate_modified_question
+from schemas import (
+    QuestRequest,
+    QuestResponse,
+    TemplateModifierRequest,
+    TemplateModifierResponse,
+)
 
 router = APIRouter()
 
@@ -47,6 +51,23 @@ async def generate_questions(request: QuestRequest):
             status_code=500,
             detail=f"Erro ao gerar questões: {str(e)}"
         )
+
+@router.get("/modify", response_model=TemplateModifierResponse)
+async def modify_existing_question(request: TemplateModifierRequest):
+    """Gera um template de questão existente aplicando ajustes nos parâmetros."""
+
+    try:
+        payload = generate_modified_question(
+            year=request.year,
+            index=request.index,
+            include_original=request.include_original,
+            scale_factor=request.scale_factor,
+            overrides=request.placeholders,
+        )
+        return TemplateModifierResponse(**payload)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+
 
 @router.get("/types")
 async def get_question_types():

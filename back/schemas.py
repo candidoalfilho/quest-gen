@@ -4,7 +4,7 @@ Schemas para validação de dados da API
 """
 
 from pydantic import BaseModel, Field, validator
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 from enum import Enum
 
 class DifficultyLevel(str, Enum):
@@ -94,3 +94,61 @@ class ErrorResponse(BaseModel):
     error: str = Field(..., description="Mensagem de erro")
     detail: Optional[str] = Field(None, description="Detalhes adicionais do erro")
     status_code: int = Field(..., description="Código de status HTTP")
+
+
+class TemplateModifierRequest(BaseModel):
+    """Dados necessários para ajustar parâmetros de uma questão existente."""
+
+    year: int = Field(..., ge=2009, description="Ano da prova ENEM a ser consultada")
+    index: int = Field(..., ge=136, le=180, description="Índice da questão dentro da prova de Matemática")
+    include_original: bool = Field(
+        default=False, description="Retorna a questão original para comparação"
+    )
+    scale_factor: Optional[float] = Field(
+        default=None,
+        description="Multiplicador aplicado a todos os números identificados no enunciado",
+    )
+    placeholders: Optional[Dict[str, str]] = Field(
+        default=None,
+        description="Valores específicos para sobrescrever placeholders identificados",
+    )
+
+    @validator("scale_factor")
+    def validate_scale_factor(cls, value):
+        if value is not None and value <= 0:
+            raise ValueError("scale_factor deve ser positivo")
+        return value
+
+
+class RenderedQuestion(BaseModel):
+    """Representa o enunciado renderizado com os novos parâmetros."""
+
+    context: str = Field(..., description="Enunciado com placeholders substituídos")
+    alternatives_introduction: str = Field(
+        ..., description="Introdução das alternativas com placeholders substituídos"
+    )
+
+
+class TemplateModifierResponse(BaseModel):
+    """Resposta com o template ajustado e renderizado."""
+
+    title: Optional[str] = Field(None, description="Título da questão")
+    context_template: str = Field(..., description="Template do enunciado com placeholders")
+    alternatives_introduction_template: str = Field(
+        ..., description="Template da introdução das alternativas com placeholders"
+    )
+    alternatives: List[Any] = Field(
+        default_factory=list, description="Lista de alternativas originais"
+    )
+    correct_alternative: Optional[str] = Field(
+        None, description="Alternativa correta conforme o banco de questões"
+    )
+    placeholders: Dict[str, str] = Field(
+        default_factory=dict, description="Valores atuais dos placeholders"
+    )
+    rendered: RenderedQuestion = Field(
+        ..., description="Enunciado e introdução com placeholders aplicados"
+    )
+    original_question: Optional[Dict[str, Any]] = Field(
+        None, description="Questão original retornada quando include_original é verdadeiro"
+    )
