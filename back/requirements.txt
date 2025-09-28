@@ -1,0 +1,28 @@
+# QuestGen Backend Dependencies
+
+# NumPy compatível com Python 3.13
+numpy>=1.24.0
+
+# FastAPI e servidor
+fastapi>=0.100.0
+uvicorn[standard]>=0.23.0
+
+# LangChain e Google Gemini
+langchain>=0.0.300
+google-generativeai>=0.3.0
+langchain-google-genai>=0.0.5
+
+# Validação de dados
+pydantic>=2.0.0
+
+# Utilitários
+python-dotenv>=1.0.0
+python-multipart>=0.0.6
+
+# Logging
+loguru>=0.7.0
+
+# Desenvolvimento
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+httpx>=0.24.0
